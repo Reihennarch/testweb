@@ -1,61 +1,856 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HAiii</title>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Wave Rework Preview</title>
     <style>
-        .test {
-            background-color: red;
-            width: 700px;
-            height: 450px;
-        }
-        .A {
-            background-color: red;
-            width: 700px;
-            height: 100px;
-        }
-        .B {
-            background-color: yellow;
-            width: 700px;
-            height: 233px;
-            text-align: left;
-            align-items: normal;
-            font-size: xx-large;
-        }
-        .logo {
-            width: 270px;
-            height: 200px;
-        }
-        .Arle {
-            background-color: black;
-            width: 400px;
-            height: 400px;
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0f93a6;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      .label {
+        position: fixed;
+        top: 10px;
+        left: 12px;
+        font-family: system-ui, sans-serif;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.55);
+        pointer-events: none;
+      }
 
-        }
-
-        
-
+      /* Life-ring + profile photo, floating over the water */
+      .life-ring-wrap {
+        position: fixed;
+        top: 9vh;
+        left: 5vw;
+        /* Increased the size values below */
+        width: clamp(200px, 20vw, 320px);
+        height: clamp(200px, 20vw, 320px);
+        z-index: 5;
+        filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.35));
+        will-change: transform;
+      }
+      .life-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: conic-gradient(
+          #c0392b 0deg 45deg,
+          #f7f2e6 45deg 90deg,
+          #c0392b 90deg 135deg,
+          #f7f2e6 135deg 180deg,
+          #c0392b 180deg 225deg,
+          #f7f2e6 225deg 270deg,
+          #c0392b 270deg 315deg,
+          #f7f2e6 315deg 360deg
+        );
+        box-shadow:
+          inset 0 0 0 5px rgba(255, 255, 255, 0.95),
+          inset 0 0 0 9px rgba(0, 0, 0, 0.1);
+      }
+      .life-ring::after {
+        content: "";
+        position: absolute;
+        inset: 15%;
+        border-radius: 50%;
+        background: #fbf5e4;
+        box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.06);
+      }
+      .profile-photo {
+        position: absolute;
+        inset: 19%;
+        border-radius: 50%;
+        background-color: #6a7b93; /* fallback tint if the photo file isn't found */
+        background-image: url("chillassdudeonsand.jpe");
+        background-size: cover;
+        background-position: center;
+        border: 4px solid #fbf5e4;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      }
     </style>
-</head>
-<body>
-    <div class="test">
-        <div class="A"></div>
-        <div class="B"> <img src="Gambar/spain.png" alt="ok" class="logo"></div>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <div class="label">
+      wave engine v2 — peeling breaks · true interference · uneven backwash
     </div>
-    
-    <p> ini <i> adalah </i> sebuah Paragraf dari <b> HTML </b></p>
 
-    <h1> Ini adalah Heading 1 </h1>
-    <h2> Ini adalah Heading 2 </h2>
-    <h3> Ini adalah Heading 3 </h3>
-    <h4> Ini adalah Heading 4 </h4>
-    <h5> Ini adalah Heading 5 </h5>
-    <h6> Ini adalah Heading 6 </h6>
+    <div class="life-ring-wrap" id="lifeRing">
+      <div class="life-ring"></div>
+      <div class="profile-photo"></div>
+    </div>
 
-    
-    <img src="Gambar/Scara.gif" style="width: 900px; height: 900px;">
+    <script>
+      // Gentle, non-repeating float for the life-ring — a couple of mismatched
+      // sine frequencies per axis so it never quite settles into a fixed loop,
+      // same "layered noise" idea as the wave shapes, just applied to a transform.
+      (function () {
+        const ring = document.getElementById("lifeRing");
+        let rt = Math.random() * 10;
+        function tick(now) {
+          rt += 0.016;
+          const bobY = Math.sin(rt * 0.6) * 7 + Math.sin(rt * 1.35 + 1.1) * 3;
+          const driftX =
+            Math.sin(rt * 0.32 + 0.7) * 8 + Math.sin(rt * 0.9 + 2.3) * 3;
+          const rot =
+            Math.sin(rt * 0.5 + 0.4) * 3 + Math.sin(rt * 1.1 + 2.0) * 1.5;
+          ring.style.transform = `translate(${driftX.toFixed(2)}px, ${bobY.toFixed(2)}px) rotate(${rot.toFixed(2)}deg)`;
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      })();
+    </script>
+    <script>
+      (function () {
+        const canvas = document.getElementById("scene");
+        const ctx = canvas.getContext("2d");
 
-    <a href="https://ultra.fandom.com/wiki/Gatanothor"> END OF EVERYTHING</a>
-    <a href="https://genshin-impact.fandom.com/wiki/Arlecchino"> <img src="Gambar/Tikus.webp" alt="" href=""> </a>
+        const COLORS = {
+          deep: "#0f93a6",
+          mid: "#2fc7bf",
+          foam: "#cdf3e6",
+          sand: "#f7c877",
+        };
+
+        const sampleStep = 10;
+
+        let W, H;
+        let bandY = { b1: 0, b2: 0, restShore: 0 };
+        let ampDeep, ampMid, ampShoreShape, freqDeep, freqMid, freqShore;
+        let basePush, maxSurgeCap;
+        let sandDots = [],
+          bubbles = [],
+          decor = [],
+          capBlobs = [];
+        let xs = [],
+          surgeArr = [],
+          shoreYArr = [],
+          wetnessArr = [];
+
+        function resize() {
+          W = canvas.width = window.innerWidth;
+          H = canvas.height = window.innerHeight;
+
+          // Water occupies the top 2/5 (40%) of the screen at rest.
+          bandY.b1 = H * 0.2;
+          bandY.b2 = H * 0.3;
+          bandY.restShore = H * 0.4;
+
+          ampDeep = Math.max(8, H * 0.015);
+          ampMid = Math.max(11, H * 0.019);
+          ampShoreShape = Math.max(14, H * 0.024);
+          freqDeep = (2 * Math.PI * 5) / W;
+          freqMid = (2 * Math.PI * 4.3) / W;
+          freqShore = (2 * Math.PI * 5.5) / W;
+
+          basePush = H * 0.075; // typical single-wave reach
+          maxSurgeCap = basePush * 1.9; // ceiling for combined/interfering waves
+
+          buildXsAndFields();
+          buildSandDots();
+          buildBubbles();
+          buildDecor();
+          buildCapBlobs();
+        }
+
+        function buildXsAndFields() {
+          xs = [];
+          for (let x = 0; x < W; x += sampleStep) xs.push(x);
+          xs.push(W);
+          surgeArr = new Array(xs.length).fill(0);
+          shoreYArr = new Array(xs.length).fill(bandY.restShore);
+          wetnessArr = new Array(xs.length).fill(0);
+        }
+
+        function buildSandDots() {
+          sandDots = [];
+          const sandTop = bandY.restShore + maxSurgeCap * 1.3 + 20;
+          const count = Math.floor((W * (H - sandTop)) / 900);
+          for (let i = 0; i < count; i++) {
+            sandDots.push({
+              x: Math.random() * W,
+              y: sandTop + Math.random() * (H - sandTop),
+              r: 1 + Math.random() * 1.4,
+              a: 0.15 + Math.random() * 0.25,
+            });
+          }
+        }
+
+        function buildBubbles() {
+          bubbles = [];
+          const count = Math.floor(W / 26);
+          const waterBottom = bandY.restShore - ampShoreShape - 6;
+          for (let i = 0; i < count; i++) {
+            bubbles.push({
+              x: Math.random() * W,
+              yBase: Math.random() * waterBottom,
+              r: 3 + Math.random() * 16,
+              speed: 0.15 + Math.random() * 0.35,
+              phase: Math.random() * Math.PI * 2,
+              ring: Math.random() < 0.25,
+              alpha: 0.1 + Math.random() * 0.22,
+            });
+          }
+        }
+
+        function buildDecor() {
+          decor = [];
+          const deepBottom = bandY.b1 - ampDeep - 6;
+          for (let i = 0; i < 3; i++) {
+            decor.push({
+              type: "fish",
+              x: Math.random() * W,
+              y: 15 + Math.random() * Math.max(15, deepBottom - 15),
+              scale: 0.5 + Math.random() * 0.5,
+              dir: Math.random() < 0.5 ? 1 : -1,
+              phase: Math.random() * Math.PI * 2,
+            });
+          }
+          const sandTop = bandY.restShore + maxSurgeCap * 1.3 + 30;
+          const kinds = ["shell", "shell", "starfish", "stone", "stone"];
+          for (const kind of kinds) {
+            decor.push({
+              type: kind,
+              x: 60 + Math.random() * Math.max(40, W - 120),
+              y: sandTop + Math.random() * Math.max(40, H - sandTop - 40),
+              rot: Math.random() * Math.PI * 2,
+              scale: 0.6 + Math.random() * 0.5,
+            });
+          }
+        }
+
+        function buildCapBlobs() {
+          capBlobs = [];
+          const count = 130;
+          for (let i = 0; i < count; i++) {
+            capBlobs.push({
+              xFrac: Math.random(),
+              depthFrac: Math.random(),
+              r: 4 + Math.random() * 7,
+              phase: Math.random() * Math.PI * 2,
+              persistence: Math.random(),
+              baseAlpha: 0.22 + Math.random() * 0.3,
+            });
+          }
+        }
+
+        window.addEventListener("resize", resize);
+        resize();
+
+        // ---- easing ----
+        const ease = {
+          outCubic: (x) => 1 - Math.pow(1 - x, 3),
+          inCubic: (x) => x * x * x,
+          outQuad: (x) => 1 - (1 - x) * (1 - x),
+          inQuad: (x) => x * x,
+        };
+        function lerp(a, b, p) {
+          return a + (b - a) * p;
+        }
+
+        // Layered, non-harmonic sines instead of one clean repeating sine.
+        // The mismatched frequency ratios (0.85 / 1.9 / 3.3 / 0.27) mean the terms
+        // only occasionally reinforce each other, so peaks come out uneven in both
+        // height and spacing rather than as identical, evenly-spaced scallops.
+        function shapeY(x, time, baseY, amp, freq, speed, phase = 0) {
+          const t1 = time * speed;
+          const n =
+            Math.sin(x * freq * 0.85 + t1 + phase) * 1.0 +
+            Math.sin(x * freq * 1.9 - t1 * 0.8 + phase * 1.7 + 1.3) * 0.4 +
+            Math.sin(x * freq * 3.3 + t1 * 1.4 + phase * 0.5 + 3.1) * 0.18 +
+            Math.sin(x * freq * 0.27 - t1 * 0.35 + phase * 2.3 + 5.2) * 0.5;
+          return baseY + (n / 1.25) * amp;
+        }
+
+        // ---- Wave cycle: approach -> bend -> crest -> break -> high water -> retreat -> dissolve ----
+        // Now evaluated PER-X (not just per-wave) so breaking peels across the screen
+        // instead of happening everywhere at once.
+        const PH = {
+          approach: 0.3,
+          crest: 0.4,
+          brk: 0.5,
+          high: 0.58,
+          retreat: 0.85,
+        };
+
+        function spawnWave(startT) {
+          return {
+            startT,
+            duration: 6.5 + Math.random() * 3, // organic, non-uniform timing
+            maxPush: basePush * (0.7 + Math.random() * 0.6), // organic, non-uniform size ("sets")
+            peelSeconds: 0.8 + Math.random() * 0.8, // how long the break takes to sweep across the screen
+            peelDir: Math.random() < 0.5 ? 1 : -1, // which side breaks first
+            channelPhase: Math.random() * Math.PI * 2, // positions the "sand channels" for uneven backwash
+          };
+        }
+
+        // Fix #2 (peeling): shift each x's local timeline by a fraction of peelSeconds
+        // based on its horizontal position, so one side crosses each phase boundary
+        // before the other — a "zipper" break instead of a uniform one.
+        function waveStateAtX(wave, x, tNow) {
+          const xNorm = wave.peelDir === 1 ? x / W : 1 - x / W;
+          const localTime = tNow - wave.startT - xNorm * wave.peelSeconds;
+          const local = localTime / wave.duration;
+          if (local < 0 || local >= 1) return null;
+
+          let crestT = 0,
+            crestVisible = false,
+            crestIntensity = 0;
+          let extension = 0,
+            justBroke = false,
+            retreatProgress = 0;
+
+          if (local < PH.approach) {
+            const p = local / PH.approach;
+            crestVisible = true;
+            crestT = ease.outCubic(p) * 0.85;
+            crestIntensity = 0.25 + 0.45 * p;
+          } else if (local < PH.crest) {
+            const p = (local - PH.approach) / (PH.crest - PH.approach);
+            crestVisible = true;
+            crestT = 0.85 + ease.inQuad(p) * 0.15;
+            crestIntensity = 0.7 + 0.3 * p;
+          } else if (local < PH.brk) {
+            const p = (local - PH.crest) / (PH.brk - PH.crest);
+            crestVisible = p < 0.35;
+            crestIntensity = Math.max(0, 1 - p / 0.35);
+            extension = ease.outQuad(p);
+            justBroke = p < 0.12; // narrow "just crossed the break threshold" window at this x
+          } else if (local < PH.high) {
+            extension = 1;
+          } else if (local < PH.retreat) {
+            // Fix #4 (uneven backwash): a low-frequency sine along x makes some
+            // "channels" pull back slower than the primary retreat speed.
+            const p = (local - PH.high) / (PH.retreat - PH.high);
+            const channelMod =
+              0.7 + 0.3 * (0.5 + 0.5 * Math.sin(x * 0.007 + wave.channelPhase));
+            const pAdj = Math.min(1, p * channelMod);
+            extension = 1 - ease.inCubic(pAdj);
+            retreatProgress = pAdj;
+          } else {
+            extension = 0;
+            retreatProgress = 1;
+          }
+          return {
+            crestT,
+            crestVisible,
+            crestIntensity,
+            extension,
+            justBroke,
+            retreatProgress,
+          };
+        }
+
+        let waves = [spawnWave(0)];
+        let nextSpawn = 3.5;
+        let particles = [];
+        let t = 0;
+
+        // Fix #1: spawn each foam particle's y from the actual shore-edge curve
+        // at its own x, instead of a flat resting line.
+        function spawnFingerAt(x, time) {
+          const y = shapeY(
+            x,
+            time,
+            bandY.restShore,
+            ampShoreShape,
+            freqShore,
+            0.18,
+            1.4,
+          );
+          particles.push({
+            x: x + (Math.random() - 0.5) * sampleStep,
+            y,
+            vx: (Math.random() - 0.5) * 30,
+            vy: 40 + Math.random() * 50,
+            life: 0,
+            maxLife: 0.5 + Math.random() * 0.5,
+            r: 3 + Math.random() * 4,
+          });
+        }
+
+        function updateParticles(dt) {
+          for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.life += dt;
+            if (p.life >= p.maxLife) {
+              particles.splice(i, 1);
+              continue;
+            }
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vx *= 0.92;
+            p.vy *= 0.9;
+          }
+        }
+
+        function drawParticles() {
+          ctx.save();
+          for (const p of particles) {
+            const lifeT = p.life / p.maxLife;
+            const a = (1 - lifeT) * 0.8;
+            const r = p.r * (1 - lifeT * 0.4);
+            ctx.beginPath();
+            ctx.fillStyle = `rgba(255,255,255,${a})`;
+            ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        function drawRippleLines(time) {
+          ctx.save();
+          ctx.lineWidth = 1.3;
+          [16, 36, 58].forEach((off, i) => {
+            ctx.beginPath();
+            for (let x = 0; x <= W; x += 14) {
+              const y = shapeY(
+                x,
+                time,
+                off,
+                ampDeep * 0.5,
+                freqDeep * 1.3,
+                0.1 + i * 0.03,
+                i * 1.7,
+              );
+              if (x === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            }
+            ctx.strokeStyle = `rgba(255,255,255,${0.13 - i * 0.025})`;
+            ctx.stroke();
+          });
+          ctx.restore();
+        }
+
+        function fillBand(color, edgeFunc, time) {
+          ctx.beginPath();
+          ctx.moveTo(0, edgeFunc(0, time));
+          for (let x = 0; x <= W; x += 10) ctx.lineTo(x, edgeFunc(x, time));
+          ctx.lineTo(W, H);
+          ctx.lineTo(0, H);
+          ctx.closePath();
+          ctx.fillStyle = color;
+          ctx.fill();
+        }
+
+        // Sand boundary is now built directly from the precomputed per-x shoreYArr
+        // (baseline shape + summed/interfered surge from every active wave).
+        function fillSandBand() {
+          ctx.beginPath();
+          ctx.moveTo(xs[0], shoreYArr[0]);
+          for (let i = 1; i < xs.length; i++) ctx.lineTo(xs[i], shoreYArr[i]);
+          ctx.lineTo(W, H);
+          ctx.lineTo(0, H);
+          ctx.closePath();
+          ctx.fillStyle = COLORS.sand;
+          ctx.fill();
+        }
+
+        function drawCrestSegment(pts) {
+          if (pts.length < 2) return;
+          const avgIntensity =
+            pts.reduce((s, p) => s + p.intensity, 0) / pts.length;
+          ctx.save();
+          ctx.globalAlpha = avgIntensity;
+          ctx.beginPath();
+          ctx.moveTo(pts[0].x, pts[0].y + 4);
+          for (let i = 1; i < pts.length; i++)
+            ctx.lineTo(pts[i].x, pts[i].y + 4);
+          ctx.strokeStyle = "rgba(10,50,60,0.35)";
+          ctx.lineWidth = 4;
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(pts[0].x, pts[0].y);
+          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+          ctx.strokeStyle = "rgba(255,255,255,0.9)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Wet-sand band drawn as per-column trapezoids so lingering "fingers"
+        // (uneven backwash) actually show up as uneven depth, not a flat strip.
+        function drawWetSand() {
+          ctx.save();
+          for (let i = 0; i < xs.length - 1; i++) {
+            const w0 = wetnessArr[i],
+              w1 = wetnessArr[i + 1];
+            const avgW = (w0 + w1) / 2;
+            if (avgW <= 0.02) continue;
+            const x0 = xs[i],
+              x1 = xs[i + 1];
+            const top0 = shoreYArr[i],
+              top1 = shoreYArr[i + 1];
+            const depth0 = maxSurgeCap * 1.3 * w0,
+              depth1 = maxSurgeCap * 1.3 * w1;
+            ctx.beginPath();
+            ctx.moveTo(x0, top0);
+            ctx.lineTo(x1, top1);
+            ctx.lineTo(x1, top1 + depth1);
+            ctx.lineTo(x0, top0 + depth0);
+            ctx.closePath();
+            ctx.fillStyle = `rgba(150,105,55,${0.45 * avgW})`;
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        function drawCapBlobs(time) {
+          ctx.save();
+          for (const b of capBlobs) {
+            const x = b.xFrac * W + Math.sin(time * 0.4 + b.phase) * 4;
+            const idx = Math.min(
+              xs.length - 1,
+              Math.max(0, Math.round(x / sampleStep)),
+            );
+            const localSurge = surgeArr[idx];
+            if (localSurge <= 0.5) continue;
+            const revealFrac = localSurge / maxSurgeCap;
+            if (b.depthFrac > revealFrac) continue;
+            const localWet = wetnessArr[idx];
+            if (b.persistence < 1 - localWet) continue;
+            const y =
+              bandY.restShore +
+              b.depthFrac * localSurge +
+              Math.sin(time * 0.6 + b.phase) * 2;
+            const a = Math.max(
+              0,
+              b.baseAlpha * (0.5 + 0.5 * Math.sin(time * 0.8 + b.phase)),
+            );
+            ctx.beginPath();
+            ctx.fillStyle = `rgba(255,255,255,${a})`;
+            ctx.arc(x, y, b.r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        function drawSandTexture() {
+          ctx.save();
+          for (const d of sandDots) {
+            ctx.beginPath();
+            ctx.fillStyle = `rgba(170,110,55,${d.a})`;
+            ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        function drawBubbles(time) {
+          ctx.save();
+          for (const b of bubbles) {
+            const x = b.x + Math.sin(time * 0.05 + b.phase) * 10;
+            const y = b.yBase + Math.sin(time * b.speed + b.phase) * 8;
+            ctx.beginPath();
+            if (b.ring) {
+              ctx.strokeStyle = `rgba(255,255,255,${b.alpha + 0.1})`;
+              ctx.lineWidth = 2;
+              ctx.arc(x, y, b.r, 0, Math.PI * 2);
+              ctx.stroke();
+            } else {
+              ctx.fillStyle = `rgba(255,255,255,${b.alpha})`;
+              ctx.arc(x, y, b.r, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+          ctx.restore();
+        }
+
+        function drawFish(x, y, scale, dir, time, phase) {
+          ctx.save();
+          ctx.translate(x + Math.sin(time * 0.3 + phase) * 15, y);
+          ctx.scale(scale * dir, scale);
+          ctx.fillStyle = "rgba(28,52,72,0.45)";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 13, 5.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(-12, 0);
+          ctx.lineTo(-21, -6);
+          ctx.lineTo(-21, 6);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        function drawStarfish(x, y, scale, rot) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(rot);
+          ctx.scale(scale, scale);
+          ctx.fillStyle = "#f0c15f";
+          ctx.beginPath();
+          const spikes = 5,
+            outerR = 15,
+            innerR = 6.5;
+          for (let i = 0; i < spikes * 2; i++) {
+            const r = i % 2 === 0 ? outerR : innerR;
+            const a = (Math.PI / spikes) * i - Math.PI / 2;
+            const px = Math.cos(a) * r,
+              py = Math.sin(a) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        function drawShell(x, y, scale, rot) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(rot);
+          ctx.scale(scale, scale);
+          ctx.fillStyle = "#fdf6e3";
+          ctx.beginPath();
+          ctx.moveTo(0, 13);
+          ctx.quadraticCurveTo(-15, 5, -13, -6);
+          ctx.quadraticCurveTo(-5, -13, 0, -13);
+          ctx.quadraticCurveTo(5, -13, 13, -6);
+          ctx.quadraticCurveTo(15, 5, 0, 13);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = "rgba(190,150,90,0.6)";
+          ctx.lineWidth = 1;
+          for (let i = -3; i <= 3; i++) {
+            ctx.beginPath();
+            ctx.moveTo(0, 13);
+            ctx.lineTo(i * 3.6, -11);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        function drawStone(x, y, scale, rot) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(rot);
+          ctx.scale(scale, scale);
+          ctx.fillStyle = "#5b7c99";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 9, 6.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        function drawPalmBlade(
+          cx,
+          cy,
+          angle,
+          length,
+          width,
+          sway,
+          colorA,
+          colorB,
+        ) {
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(angle + sway);
+          // Wide lance-shaped blade: bulges out then tapers to a sharp point,
+          // with a slightly asymmetric curve so it reads as a natural leaf.
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.quadraticCurveTo(
+            length * 0.3,
+            -width * 0.95,
+            length * 0.64,
+            -width * 0.55,
+          );
+          ctx.quadraticCurveTo(length * 0.93, -width * 0.15, length, 0);
+          ctx.quadraticCurveTo(
+            length * 0.88,
+            width * 0.22,
+            length * 0.52,
+            width * 0.3,
+          );
+          ctx.quadraticCurveTo(length * 0.22, width * 0.24, 0, 0);
+          ctx.closePath();
+          const grad = ctx.createLinearGradient(0, 0, length, 0);
+          grad.addColorStop(0, colorA);
+          grad.addColorStop(1, colorB);
+          ctx.fillStyle = grad;
+          ctx.fill();
+          ctx.restore();
+        }
+
+        function drawPalmTree(time) {
+          const cx = W * 0.05;
+          const cy = H * 0.97;
+          const bladeCount = 16;
+
+          // soft ground shadow
+          ctx.save();
+          // Near the top of drawPalmTree:
+          ctx.beginPath();
+          // Increased offset (35 -> 52) and radii (140, 42 -> 210, 63)
+          ctx.ellipse(cx + 52, cy - 4, 210, 63, -0.1, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(70,50,25,0.18)";
+          ctx.fill();
+          ctx.restore();
+
+          for (let i = 0; i < bladeCount; i++) {
+            const baseAngle = (i / bladeCount) * Math.PI * 2;
+            const isLong = i % 2 === 0;
+            const length = isLong ? W * 0.25 : W * 0.17; // Increased from 0.165 and 0.115
+            const width = isLong ? 93 : 69;
+            const colorA = isLong ? "#7fc44d" : "#3f8f3c";
+            const colorB = isLong ? "#4d9c38" : "#2b6c2b";
+            const phase = i * 0.7;
+            const sway =
+              Math.sin(time * 0.35 + phase) * 0.05 +
+              Math.sin(time * 0.13 + phase * 1.6) * 0.025;
+            drawPalmBlade(
+              cx,
+              cy,
+              baseAngle,
+              length,
+              width,
+              sway,
+              colorA,
+              colorB,
+            );
+          }
+
+          // crown base hint
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cy, 33, 0, Math.PI * 2); // Increased radius from 22 to 33
+          ctx.fillStyle = "#6b8f3f";
+          ctx.fill();
+          ctx.restore();
+        }
+
+        function drawDecor(time) {
+          for (const d of decor) {
+            if (d.type === "fish")
+              drawFish(d.x, d.y, d.scale, d.dir, time, d.phase);
+            else if (d.type === "starfish")
+              drawStarfish(d.x, d.y, d.scale, d.rot);
+            else if (d.type === "shell") drawShell(d.x, d.y, d.scale, d.rot);
+            else if (d.type === "stone") drawStone(d.x, d.y, d.scale, d.rot);
+          }
+        }
+
+        let lastFrameT = null;
+
+        function animate(now) {
+          if (lastFrameT === null) lastFrameT = now;
+          const dt = Math.min(0.05, (now - lastFrameT) / 1000);
+          lastFrameT = now;
+          t += dt;
+
+          if (t >= nextSpawn) {
+            waves.push(spawnWave(t));
+            nextSpawn = t + 3.5 + Math.random() * 2.5;
+          }
+
+          // Remove waves whose entire lifespan (including the peel tail) has finished.
+          for (let i = waves.length - 1; i >= 0; i--) {
+            const w = waves[i];
+            if (t - w.startT > w.duration + w.peelSeconds) waves.splice(i, 1);
+          }
+
+          // Fix #3 (true interference): SUM every active wave's contribution per x
+          // instead of taking the single tallest one, then cap it.
+          surgeArr.fill(0);
+          const crestSegmentsByWave = [];
+
+          for (const w of waves) {
+            const pts = [];
+            for (let idx = 0; idx < xs.length; idx++) {
+              const x = xs[idx];
+              const st = waveStateAtX(w, x, t);
+              if (!st) continue;
+              surgeArr[idx] += st.extension * w.maxPush;
+              if (st.crestVisible) {
+                const crestBaseY = lerp(bandY.b2, bandY.restShore, st.crestT);
+                pts.push({
+                  x,
+                  y: shapeY(
+                    x,
+                    t,
+                    crestBaseY,
+                    ampShoreShape * 0.6,
+                    freqShore,
+                    0.18,
+                    1.4,
+                  ),
+                  intensity: st.crestIntensity,
+                });
+              }
+              if (st.justBroke && Math.random() < 0.35) spawnFingerAt(x, t);
+            }
+            if (pts.length >= 2) crestSegmentsByWave.push(pts);
+          }
+
+          for (let idx = 0; idx < xs.length; idx++) {
+            surgeArr[idx] = Math.min(surgeArr[idx], maxSurgeCap);
+            shoreYArr[idx] =
+              shapeY(
+                xs[idx],
+                t,
+                bandY.restShore,
+                ampShoreShape,
+                freqShore,
+                0.18,
+                1.4,
+              ) + surgeArr[idx];
+
+            const target = surgeArr[idx] / maxSurgeCap;
+            if (target > wetnessArr[idx])
+              wetnessArr[idx] +=
+                (target - wetnessArr[idx]) * Math.min(1, dt * 6);
+            else
+              wetnessArr[idx] +=
+                (target - wetnessArr[idx]) * Math.min(1, dt * 0.8);
+          }
+
+          updateParticles(dt);
+
+          ctx.clearRect(0, 0, W, H);
+
+          ctx.fillStyle = COLORS.deep;
+          ctx.fillRect(0, 0, W, H);
+          drawRippleLines(t);
+
+          fillBand(
+            COLORS.mid,
+            (x, time) => shapeY(x, time, bandY.b1, ampDeep, freqDeep, 0.15, 0),
+            t,
+          );
+          fillBand(
+            COLORS.foam,
+            (x, time) => shapeY(x, time, bandY.b2, ampMid, freqMid, -0.12, 1.3),
+            t,
+          );
+
+          for (const seg of crestSegmentsByWave) drawCrestSegment(seg);
+
+          fillSandBand();
+          drawWetSand();
+          drawCapBlobs(t);
+          drawParticles();
+
+          drawSandTexture();
+          drawBubbles(t);
+          drawDecor(t);
+          drawPalmTree(t);
+
+          requestAnimationFrame(animate);
+        }
+
+        requestAnimationFrame(animate);
+      })();
+    </script>
+  </body>
 </html>
